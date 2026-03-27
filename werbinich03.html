@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wer bin ich? - Россия</title>
+    <style>
+        :root {
+            --primary-blue: #0055a4;
+            --russian-red: #d52b1e;
+            --success-green: #28a745;
+            --bg-color: #f4f7f6;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, sans-serif;
+            background-color: var(--bg-color);
+            margin: 0;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        h1 { color: var(--primary-blue); text-align: center; font-size: 1.6rem; margin-bottom: 20px; }
+
+        /* Progress Bar */
+        .progress-container {
+            width: 100%;
+            max-width: 500px;
+            height: 10px;
+            background: #e0e0e0;
+            border-radius: 5px;
+            margin-bottom: 25px;
+            overflow: hidden;
+        }
+        #progress-bar {
+            height: 100%;
+            background: var(--primary-blue);
+            width: 0%;
+            transition: width 0.4s ease;
+        }
+
+        /* Quiz Karte */
+        .quiz-card {
+            background: white;
+            width: 100%;
+            max-width: 500px;
+            padding: 30px 20px;
+            border-radius: 20px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            text-align: center;
+            margin-bottom: 25px;
+        }
+
+        .question-text {
+            font-size: 1.4rem;
+            color: #333;
+            margin-bottom: 15px;
+            line-height: 1.4;
+        }
+
+        .who-am-i {
+            font-weight: bold;
+            color: var(--russian-red);
+            font-size: 1.2rem;
+        }
+
+        /* Antwort-Optionen */
+        .options-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            width: 100%;
+            max-width: 500px;
+        }
+
+        .option-btn {
+            background: white;
+            border: 2px solid var(--primary-blue);
+            color: var(--primary-blue);
+            padding: 15px;
+            border-radius: 12px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+            outline: none;
+        }
+
+        .option-btn:hover { background-color: #f0f7ff; }
+        .option-btn.correct { background-color: var(--success-green); border-color: var(--success-green); color: white; }
+        .option-btn.wrong { background-color: var(--russian-red); border-color: var(--russian-red); color: white; }
+        .option-btn:disabled { cursor: default; }
+
+        /* Ergebnis-Bildschirm */
+        #result-screen {
+            display: none;
+            text-align: center;
+            width: 100%;
+            max-width: 500px;
+        }
+
+        .restart-btn {
+            background: var(--primary-blue);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 10px;
+            font-size: 1.1rem;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+
+        @media (max-width: 500px) {
+            .question-text { font-size: 1.2rem; }
+            .option-btn { font-size: 1rem; padding: 12px; }
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Кто я? (Wer bin ich?)</h1>
+
+    <div id="game-container">
+        <div class="progress-container">
+            <div id="progress-bar"></div>
+        </div>
+
+        <div class="quiz-card">
+            <div id="question" class="question-text">Lade Rätsel...</div>
+            <div class="who-am-i">Кто я?</div>
+        </div>
+
+        <div id="options" class="options-list">
+            <!-- Buttons werden hier eingefügt -->
+        </div>
+    </div>
+
+    <div id="result-screen">
+        <h2 style="color: var(--primary-blue);">Игра окончена!</h2>
+        <p id="score-text" style="font-size: 1.2rem;"></p>
+        <button class="restart-btn" onclick="restart()">Nochmal spielen</button>
+    </div>
+
+    <script>
+        const quizData = [
+            { q: "Я — столиca России. Во мне есть Кремль и Красная площадь.", a: "Москва", options: ["Москва", "Ейск", "Волгоград"] },
+            { q: "Я — великий русский поэт и писатель. Все знают моё имя.", a: "Пушкин", options: ["Пушкин", "Толстой", "Чехов"] },
+            { q: "Я — очень вкусный красный суп. Меня обычно едят со сметаной.", a: "Борщ", options: ["Блины", "Борщ", "Салат оливье"] },
+            { q: "Я — самое глубокое и красивое озеро в России.", a: "Байкал", options: ["Байкал", "Камчатка", "Петергоф"] },
+            { q: "Я — весёлый весенний праздник. Люди пекут блины и едят их с маслом.", a: "Масленица", options: ["Новый год", "Масленица", "Пасха"] },
+            { q: "Я — известная русская теннисистка. Я играю в теннис во всем мире.", a: "Мария Шарапова", options: ["Мария Шарапова", "Анна Курникова", "Ира"] },
+            { q: "Я нахожусь в самом центре Москвы. Здесь много туристов и стоит Кремль.", a: "Красная площадь", options: ["Красная площадь", "Петергоф", "Мамаев курган"] },
+            { q: "Я — город на юге России. Я маленький и курортный. Я — родина Иры.", a: "Ейск", options: ["Москва", "Ейск", "Санкт-Петербург"] }
+        ];
+
+        let currentIndex = 0;
+        let score = 0;
+
+        function updateGame() {
+            if (currentIndex >= quizData.length) {
+                showResults();
+                return;
+            }
+
+            const current = quizData[currentIndex];
+            document.getElementById('question').innerText = current.q;
+            
+            const optionsContainer = document.getElementById('options');
+            optionsContainer.innerHTML = '';
+            
+            // Optionen mischen
+            const shuffled = [...current.options].sort(() => Math.random() - 0.5);
+            
+            shuffled.forEach(opt => {
+                const btn = document.createElement('button');
+                btn.className = 'option-btn';
+                btn.innerText = opt;
+                btn.onclick = () => checkAnswer(opt, btn);
+                optionsContainer.appendChild(btn);
+            });
+
+            document.getElementById('progress-bar').style.width = (currentIndex / quizData.length * 100) + "%";
+        }
+
+        function checkAnswer(choice, btn) {
+            const correct = quizData[currentIndex].a;
+            const allBtns = document.querySelectorAll('.option-btn');
+            
+            allBtns.forEach(b => b.disabled = true);
+
+            if (choice === correct) {
+                score++;
+                btn.classList.add('correct');
+            } else {
+                btn.classList.add('wrong');
+                allBtns.forEach(b => {
+                    if (b.innerText === correct) b.classList.add('correct');
+                });
+            }
+
+            setTimeout(() => {
+                currentIndex++;
+                updateGame();
+            }, 1200);
+        }
+
+        function showResults() {
+            document.getElementById('game-container').style.display = 'none';
+            document.getElementById('result-screen').style.display = 'block';
+            document.getElementById('score-text').innerText = `Твой результат: ${score} из ${quizData.length}`;
+        }
+
+        function restart() {
+            currentIndex = 0;
+            score = 0;
+            document.getElementById('game-container').style.display = 'block';
+            document.getElementById('result-screen').style.display = 'none';
+            updateGame();
+        }
+
+        updateGame();
+    </script>
+</body>
+</html>
