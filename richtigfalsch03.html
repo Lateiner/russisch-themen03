@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Richtig oder Falsch: Россия</title>
+    <style>
+        :root {
+            --primary-blue: #0055a4;
+            --russian-red: #d52b1e;
+            --success-green: #28a745;
+            --bg-color: #f0f2f5;
+        }
+
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background-color: var(--bg-color);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        h1 { color: var(--primary-blue); text-align: center; font-size: 1.5rem; margin-bottom: 20px; }
+
+        /* Progress Bar */
+        .progress-bar {
+            width: 100%;
+            max-width: 500px;
+            height: 8px;
+            background: #ddd;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+        #progress-fill {
+            height: 100%;
+            background: var(--primary-blue);
+            width: 0%;
+            transition: width 0.3s;
+        }
+
+        /* Quiz Karte */
+        .quiz-card {
+            background: white;
+            width: 100%;
+            max-width: 500px;
+            padding: 40px 20px;
+            border-radius: 20px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            text-align: center;
+            margin-bottom: 30px;
+            min-height: 120px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #statement {
+            font-size: 1.3rem;
+            line-height: 1.4;
+            color: #333;
+            font-weight: 500;
+        }
+
+        /* Buttons */
+        .btn-container {
+            display: flex;
+            gap: 15px;
+            width: 100%;
+            max-width: 500px;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 18px;
+            border: none;
+            border-radius: 12px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.1s, opacity 0.2s;
+            color: white;
+        }
+
+        .btn-true { background-color: var(--success-green); }
+        .btn-false { background-color: var(--russian-red); }
+        .btn:active { transform: scale(0.95); }
+        .btn:disabled { opacity: 0.5; cursor: default; }
+
+        /* Result Screen */
+        #result-screen {
+            display: none;
+            text-align: center;
+            background: white;
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 500px;
+        }
+
+        .score { font-size: 3rem; font-weight: bold; color: var(--primary-blue); margin: 20px 0; }
+
+        #restart-btn {
+            background-color: var(--primary-blue);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 10px;
+            font-size: 1rem;
+            cursor: pointer;
+        }
+
+        @keyframes flash-green { 0% { background: white; } 50% { background: #d4edda; } 100% { background: white; } }
+        @keyframes flash-red { 0% { background: white; } 50% { background: #f8d7da; } 100% { background: white; } }
+        .correct-flash { animation: flash-green 0.5s; }
+        .wrong-flash { animation: flash-red 0.5s; }
+    </style>
+</head>
+<body>
+
+    <h1>Верно или неверно?</h1>
+
+    <div id="game-container">
+        <div class="progress-bar">
+            <div id="progress-fill"></div>
+        </div>
+
+        <div class="quiz-card" id="card">
+            <p id="statement">Lade Aussage...</p>
+        </div>
+
+        <div class="btn-container">
+            <button class="btn btn-true" onclick="checkAnswer(true)">Верно<br>(Richtig)</button>
+            <button class="btn btn-false" onclick="checkAnswer(false)">Неверно<br>(Falsch)</button>
+        </div>
+    </div>
+
+    <div id="result-screen">
+        <h2>Твой результат:</h2>
+        <div class="score" id="final-score">0 / 10</div>
+        <p id="feedback-textText"></p>
+        <button id="restart-btn" onclick="restartGame()">Neustart</button>
+    </div>
+
+    <script>
+        const quizData = [
+            { text: "Москва – это столица России.", correct: true },
+            { text: "Россия – очень маленькая страна.", correct: false },
+            { text: "Москва находится в европейской части России.", correct: true },
+            { text: "В России говорят только на английском языке.", correct: false },
+            { text: "Салат оливье – это традиционное блюдо.", correct: true },
+            { text: "Масленица – это праздник прощания с летом.", correct: false },
+            { text: "Александр Пушкин – известный русский поэт.", correct: true },
+            { text: "Озеро Байкал находится в России.", correct: true },
+            { text: "В московском метро нет красивых станций.", correct: false },
+            { text: "На Масленицу люди обычно пекут блины.", correct: true }
+        ];
+
+        let currentIndex = 0;
+        let score = 0;
+
+        function loadQuestion() {
+            if (currentIndex < quizData.length) {
+                document.getElementById('statement').innerText = quizData[currentIndex].text;
+                document.getElementById('progress-fill').style.width = (currentIndex / quizData.length * 100) + "%";
+            } else {
+                showResults();
+            }
+        }
+
+        function checkAnswer(userAnswer) {
+            const buttons = document.querySelectorAll('.btn');
+            buttons.forEach(b => b.disabled = true);
+
+            const isCorrect = userAnswer === quizData[currentIndex].correct;
+            const card = document.getElementById('card');
+
+            if (isCorrect) {
+                score++;
+                card.classList.add('correct-flash');
+            } else {
+                card.classList.add('wrong-flash');
+            }
+
+            setTimeout(() => {
+                card.classList.remove('correct-flash', 'wrong-flash');
+                currentIndex++;
+                buttons.forEach(b => b.disabled = false);
+                loadQuestion();
+            }, 600);
+        }
+
+        function showResults() {
+            document.getElementById('game-container').style.display = 'none';
+            const screen = document.getElementById('result-screen');
+            screen.style.display = 'block';
+            document.getElementById('final-score').innerText = `${score} / ${quizData.length}`;
+            
+            let feedback = "";
+            if (score === 10) feedback = "Отлично! Ты эксперт по России!";
+            else if (score > 7) feedback = "Молодец! Очень хороший результат.";
+            else feedback = "Хорошо, но попробуй ещё раз!";
+            document.getElementById('feedback-textText').innerText = feedback;
+        }
+
+        function restartGame() {
+            currentIndex = 0;
+            score = 0;
+            document.getElementById('game-container').style.display = 'block';
+            document.getElementById('result-screen').style.display = 'none';
+            loadQuestion();
+        }
+
+        // Initialer Start
+        loadQuestion();
+    </script>
+</body>
+</html>
