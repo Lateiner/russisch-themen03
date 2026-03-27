@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Endungs-Jäger: Russische Fälle</title>
+    <style>
+        :root {
+            --primary-blue: #0055a4;
+            --russian-red: #d52b1e;
+            --success-green: #28a745;
+            --bg-color: #f0f4f8;
+        }
+
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background-color: var(--bg-color);
+            margin: 0;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        h1 { color: var(--primary-blue); text-align: center; font-size: 1.6rem; margin-bottom: 10px; }
+        .score-box { font-weight: bold; margin-bottom: 15px; color: #555; }
+
+        /* Progress Bar */
+        .progress-container {
+            width: 100%;
+            max-width: 500px;
+            height: 10px;
+            background: #d1d8e0;
+            border-radius: 5px;
+            margin-bottom: 30px;
+            overflow: hidden;
+        }
+        #progress-fill {
+            height: 100%;
+            background: var(--primary-blue);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        /* Quiz Karte */
+        .quiz-card {
+            background: white;
+            width: 100%;
+            max-width: 500px;
+            padding: 40px 20px;
+            border-radius: 20px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+            text-align: center;
+            margin-bottom: 30px;
+            min-height: 100px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+        }
+
+        .sentence {
+            font-size: 1.4rem;
+            line-height: 1.5;
+            color: #333;
+        }
+
+        .missing-ending {
+            color: var(--russian-red);
+            font-weight: bold;
+            border-bottom: 3px solid var(--russian-red);
+            padding: 0 5px;
+        }
+
+        /* Buttons für die Endungen */
+        .options-container {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            width: 100%;
+            max-width: 500px;
+        }
+
+        .option-btn {
+            background: white;
+            border: 3px solid var(--primary-blue);
+            padding: 15px 5px;
+            border-radius: 12px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: var(--primary-blue);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .option-btn:active { transform: scale(0.95); }
+        .option-btn.correct { background: var(--success-green); border-color: var(--success-green); color: white; }
+        .option-btn.wrong { background: var(--russian-red); border-color: var(--russian-red); color: white; }
+
+        /* Sieg-Bildschirm */
+        #result-screen {
+            display: none;
+            text-align: center;
+            padding: 30px;
+        }
+
+        .restart-btn {
+            background: var(--primary-blue);
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 10px;
+            font-size: 1.1rem;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+
+        @media (max-width: 500px) {
+            .sentence { font-size: 1.2rem; }
+            .option-btn { font-size: 1rem; padding: 12px 5px; }
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Охотник за окончаниями</h1>
+    <div class="score-box" id="score">Richtig: 0 / 10</div>
+
+    <div id="game-ui">
+        <div class="progress-container">
+            <div id="progress-fill"></div>
+        </div>
+
+        <div class="quiz-card">
+            <div id="sentence-display" class="sentence">Lade Satz...</div>
+        </div>
+
+        <div class="options-container" id="options">
+            <!-- Buttons werden hier eingefügt -->
+        </div>
+    </div>
+
+    <div id="result-screen">
+        <h2 id="final-msg" style="color: var(--primary-blue);">Отлично!</h2>
+        <p id="final-score"></p>
+        <button class="restart-btn" onclick="restart()">Nochmal spielen</button>
+    </div>
+
+    <script>
+        const quizData = [
+            { text: "Я из Росси", missing: "и", options: ["и", "е", "я"], hint: "Genitiv (weiblich)" },
+            { text: "Столица Росси", missing: "и", options: ["и", "е", "я"], hint: "Genitiv (weiblich)" },
+            { text: "В Москв", missing: "е", options: ["е", "ы", "у"], hint: "Präpositiv" },
+            { text: "В европейской част", missing: "и", options: ["и", "е", "я"], hint: "Präpositiv (3. Dekl.)" },
+            { text: "На русском язык", missing: "е", options: ["е", "и", "у"], hint: "Präpositiv" },
+            { text: "Красн", missing: "ая", options: ["ая", "ое", "ый"], hint: "Adj. Nominativ (weiblich)" },
+            { text: "Праздновать Маслениц", missing: "у", options: ["у", "ы", "е"], hint: "Akkusativ" },
+            { text: "Печь блин", missing: "ы", options: ["ы", "и", "а"], hint: "Plural" },
+            { text: "В моем город", missing: "е", options: ["е", "и", "у"], hint: "Präpositiv" },
+            { text: "Известн", missing: "ые", options: ["ые", "ая", "ое"], hint: "Adj. Plural" }
+        ];
+
+        let currentIndex = 0;
+        let score = 0;
+
+        function updateUI() {
+            if (currentIndex >= quizData.length) {
+                showResults();
+                return;
+            }
+
+            const current = quizData[currentIndex];
+            const display = document.getElementById('sentence-display');
+            display.innerHTML = `${current.text}<span class="missing-ending">...</span>`;
+            
+            const optionsContainer = document.getElementById('options');
+            optionsContainer.innerHTML = '';
+            
+            // Zufällig mischen der Optionen
+            const shuffledOptions = [...current.options].sort(() => Math.random() - 0.5);
+            
+            shuffledOptions.forEach(opt => {
+                const btn = document.createElement('button');
+                btn.className = 'option-btn';
+                btn.innerText = opt;
+                btn.onclick = () => checkAnswer(opt, btn);
+                optionsContainer.appendChild(btn);
+            });
+
+            document.getElementById('progress-fill').style.width = (currentIndex / quizData.length * 100) + "%";
+            document.getElementById('score').innerText = `Richtig: ${score} / 10`;
+        }
+
+        function checkAnswer(selected, btn) {
+            const correct = quizData[currentIndex].missing;
+            const allBtns = document.querySelectorAll('.option-btn');
+            
+            // Buttons sperren
+            allBtns.forEach(b => b.disabled = true);
+
+            if (selected === correct) {
+                score++;
+                btn.classList.add('correct');
+            } else {
+                btn.classList.add('wrong');
+                // Richtige Antwort kurz zeigen
+                allBtns.forEach(b => {
+                    if (b.innerText === correct) b.classList.add('correct');
+                });
+            }
+
+            setTimeout(() => {
+                currentIndex++;
+                updateUI();
+            }, 1000);
+        }
+
+        function showResults() {
+            document.getElementById('game-ui').style.display = 'none';
+            document.getElementById('result-screen').style.display = 'block';
+            document.getElementById('final-score').innerText = `Du hast ${score} von 10 Endungen richtig gefangen!`;
+            
+            if (score === 10) document.getElementById('final-msg').innerText = "Супер! Ты эксперт!";
+            else if (score >= 7) document.getElementById('final-msg').innerText = "Молодец! Очень хорошо!";
+            else document.getElementById('final-msg').innerText = "Хорошо, но нужно ещё попрактиковаться.";
+        }
+
+        function restart() {
+            currentIndex = 0;
+            score = 0;
+            document.getElementById('game-ui').style.display = 'block';
+            document.getElementById('result-screen').style.display = 'none';
+            updateUI();
+        }
+
+        // Start
+        updateUI();
+    </script>
+</body>
+</html>
