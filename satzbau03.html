@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Satzbau-Baukasten: Russische Sätze</title>
+    <style>
+        :root {
+            --primary-blue: #0055a4;
+            --russian-red: #d52b1e;
+            --success-green: #28a745;
+            --bg-color: #f8f9fa;
+        }
+
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background-color: var(--bg-color);
+            margin: 0;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        h1 { color: var(--primary-blue); text-align: center; font-size: 1.5rem; margin-bottom: 10px; }
+        .instruction { color: #555; text-align: center; margin-bottom: 20px; font-size: 0.9rem; }
+
+        /* Fortschritt */
+        .progress { width: 100%; max-width: 500px; height: 6px; background: #ddd; border-radius: 3px; margin-bottom: 20px; }
+        #progress-fill { height: 100%; background: var(--primary-blue); width: 0%; transition: width 0.3s; }
+
+        /* Bereich für den gebauten Satz */
+        .sentence-display {
+            width: 100%;
+            max-width: 500px;
+            min-height: 80px;
+            background: white;
+            border: 2px dashed var(--primary-blue);
+            border-radius: 15px;
+            padding: 15px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-content: flex-start;
+            margin-bottom: 20px;
+            box-shadow: inset 0 2px 5px rgba(0,0,0,0.05);
+        }
+
+        /* Wort-Bausteine */
+        .word-pool {
+            width: 100%;
+            max-width: 500px;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 30px;
+        }
+
+        .chip {
+            background: white;
+            border: 2px solid var(--primary-blue);
+            padding: 10px 18px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: bold;
+            color: var(--primary-blue);
+            transition: all 0.2s;
+            user-select: none;
+            box-shadow: 0 3px 6px rgba(0,0,0,0.1);
+        }
+        .chip:hover { background: #eef5ff; }
+        .chip:active { transform: scale(0.95); }
+        .chip.used { opacity: 0; pointer-events: none; }
+
+        /* Wörter im gebauten Satz */
+        .chip-placed {
+            background: var(--primary-blue);
+            color: white;
+            padding: 8px 15px;
+            border-radius: 20px;
+            cursor: pointer;
+            animation: popIn 0.3s ease;
+        }
+
+        @keyframes popIn { 0% { transform: scale(0.8); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+
+        /* Controls */
+        .controls { display: flex; gap: 10px; width: 100%; max-width: 500px; }
+        .btn {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 10px;
+            font-weight: bold;
+            cursor: pointer;
+            color: white;
+            transition: opacity 0.2s;
+        }
+        .btn-restart { background: #6c757d; }
+        .btn-solution { background: var(--primary-blue); }
+        .btn-next { background: var(--success-green); display: none; }
+        .btn:hover { opacity: 0.9; }
+
+        .feedback { margin-top: 15px; font-weight: bold; height: 1.5rem; text-align: center; }
+
+        @media (max-width: 500px) {
+            .chip { font-size: 0.9rem; padding: 8px 14px; }
+            .sentence-display { min-height: 60px; }
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Собери предложение</h1>
+    <p class="instruction">Klicke die Wörter in der richtigen Reihenfolge an.</p>
+
+    <div class="progress"><div id="progress-fill"></div></div>
+
+    <div class="sentence-display" id="display">
+        <!-- Hier erscheinen die gewählten Wörter -->
+    </div>
+
+    <div class="word-pool" id="pool">
+        <!-- Hier liegen die verfügbaren Bausteine -->
+    </div>
+
+    <div id="feedback" class="feedback"></div>
+
+    <div class="controls">
+        <button class="btn btn-restart" onclick="resetLevel()">Neustart</button>
+        <button class="btn btn-solution" onclick="showSolution()">Lösung</button>
+        <button id="next-btn" class="btn btn-next" onclick="nextLevel()">Nächster Satz</button>
+    </div>
+
+    <script>
+        const levels = [
+            { full: "Я из России .", words: ["Я", "из", "России", "."] },
+            { full: "Моя страна большая и красивая .", words: ["Моя", "страна", "большая", "и", "красивая", "."] },
+            { full: "Москва – столица России .", words: ["Москва", "–", "столица", "России", "."] },
+            { full: "В России живут русские .", words: ["В", "России", "живут", "русские", "."] },
+            { full: "Я люблю мой родной город .", words: ["Я", "люблю", "мой", "родной", "город", "."] }
+        ];
+
+        let currentLevel = 0;
+        let builtSentence = [];
+
+        function initLevel() {
+            const pool = document.getElementById('pool');
+            const display = document.getElementById('display');
+            const feedback = document.getElementById('feedback');
+            const nextBtn = document.getElementById('next-btn');
+            
+            display.innerHTML = '';
+            feedback.innerText = '';
+            feedback.style.color = '';
+            nextBtn.style.display = 'none';
+            builtSentence = [];
+            
+            // Wörter mischen
+            const shuffled = [...levels[currentLevel].words].sort(() => Math.random() - 0.5);
+            
+            pool.innerHTML = '';
+            shuffled.forEach((word, index) => {
+                const span = document.createElement('div');
+                span.className = 'chip';
+                span.innerText = word;
+                span.onclick = () => addWord(word, span);
+                pool.appendChild(span);
+            });
+
+            document.getElementById('progress-fill').style.width = (currentLevel / levels.length * 100) + "%";
+        }
+
+        function addWord(word, element) {
+            builtSentence.push(word);
+            element.classList.add('used');
+            
+            const display = document.getElementById('display');
+            const placed = document.createElement('div');
+            placed.className = 'chip-placed';
+            placed.innerText = word;
+            placed.onclick = () => removeLastWord(); // Einfachheitshalber letztes Wort entfernen
+            display.appendChild(placed);
+
+            checkSentence();
+        }
+
+        function removeLastWord() {
+            if (builtSentence.length === 0) return;
+            const lastWord = builtSentence.pop();
+            
+            // Chip im Pool wieder einblenden
+            const chips = document.querySelectorAll('.chip.used');
+            for (let chip of chips) {
+                if (chip.innerText === lastWord) {
+                    chip.classList.remove('used');
+                    break;
+                }
+            }
+            renderDisplay();
+        }
+
+        function renderDisplay() {
+            const display = document.getElementById('display');
+            display.innerHTML = '';
+            builtSentence.forEach(word => {
+                const placed = document.createElement('div');
+                placed.className = 'chip-placed';
+                placed.innerText = word;
+                placed.onclick = () => removeLastWord();
+                display.appendChild(placed);
+            });
+            checkSentence();
+        }
+
+        function checkSentence() {
+            const target = levels[currentLevel].words;
+            const feedback = document.getElementById('feedback');
+            
+            if (builtSentence.length === target.length) {
+                if (builtSentence.join(' ') === target.join(' ')) {
+                    feedback.innerText = "Правильно! (Richtig)";
+                    feedback.style.color = "var(--success-green)";
+                    document.getElementById('next-btn').style.display = 'block';
+                } else {
+                    feedback.innerText = "Попробуй ещё раз. (Versuch es nochmal.)";
+                    feedback.style.color = "var(--russian-red)";
+                }
+            } else {
+                feedback.innerText = "";
+            }
+        }
+
+        function resetLevel() {
+            initLevel();
+        }
+
+        function showSolution() {
+            builtSentence = [...levels[currentLevel].words];
+            renderDisplay();
+            // Verstecke alle Chips im Pool
+            document.querySelectorAll('.chip').forEach(c => c.classList.add('used'));
+        }
+
+        function nextLevel() {
+            currentLevel++;
+            if (currentLevel < levels.length) {
+                initLevel();
+            } else {
+                alert("Поздравляю! (Glückwunsch!) Du hast alle Sätze gebaut.");
+                currentLevel = 0;
+                initLevel();
+            }
+        }
+
+        initLevel();
+    </script>
+</body>
+</html>
