@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Russland & Moskau: Bild-Wort-Match</title>
+    <style>
+        :root {
+            --primary-blue: #0055a4;
+            --russian-red: #d52b1e;
+            --success-green: #28a745;
+            --gold: #ffcc00;
+            --light-bg: #f0f2f5;
+        }
+
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background-color: var(--light-bg);
+            margin: 0;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            color: #333;
+        }
+
+        h1 { color: var(--primary-blue); text-align: center; margin-bottom: 5px; font-size: 1.8rem; }
+        .instructions { text-align: center; margin-bottom: 20px; color: #555; }
+
+        /* Das Grid für die Bilder */
+        .game-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 12px;
+            width: 100%;
+            max-width: 1000px;
+            margin-bottom: 30px;
+        }
+
+        .card {
+            background: white;
+            border: 4px solid #fff;
+            border-radius: 12px;
+            overflow: hidden;
+            cursor: pointer;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            transition: all 0.2s ease;
+        }
+
+        .card img {
+            width: 100%;
+            height: 120px;
+            object-fit: cover;
+            display: block;
+        }
+
+        .card.selected {
+            border-color: var(--gold);
+            transform: scale(1.03);
+            box-shadow: 0 8px 15px rgba(0,0,0,0.2);
+        }
+
+        .card.matched {
+            opacity: 0.3;
+            cursor: default;
+            border-color: var(--success-green);
+        }
+
+        /* Wort-Container am unteren Rand */
+        .word-pool {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
+            max-width: 1000px;
+            padding: 20px;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 -2px 15px rgba(0,0,0,0.1);
+            position: sticky;
+            bottom: 10px;
+            z-index: 100;
+        }
+
+        .word-btn {
+            background: #fff;
+            border: 2px solid var(--primary-blue);
+            color: var(--primary-blue);
+            padding: 12px 20px;
+            border-radius: 30px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .word-btn:hover {
+            background: var(--primary-blue);
+            color: white;
+        }
+
+        .word-btn.hidden {
+            visibility: hidden;
+            pointer-events: none;
+        }
+
+        .win-message {
+            display: none;
+            text-align: center;
+            background: var(--success-green);
+            color: white;
+            padding: 30px;
+            border-radius: 15px;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 1000;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+
+        /* Mobile Layout */
+        @media (max-width: 600px) {
+            .game-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+            .card img { height: 100px; }
+            h1 { font-size: 1.4rem; }
+            .word-btn { font-size: 0.95rem; padding: 10px 15px; }
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Россия и Москва</h1>
+    <p class="instructions">Klicke zuerst auf ein Bild und dann auf das richtige russische Wort.</p>
+
+    <div class="game-grid" id="imageGrid"></div>
+
+    <div class="word-pool" id="wordPool"></div>
+
+    <div id="winMessage" class="win-message">
+        <h2 style="font-size: 2rem;">Молодец!</h2>
+        <p>Du hast alle 10 Bilder richtig zugeordnet.</p>
+        <button onclick="location.reload()" style="padding:10px 20px; cursor:pointer; font-weight:bold; border-radius:10px; border:none; background: white; color: var(--success-green);">Nochmal spielen</button>
+    </div>
+
+    <script>
+        // Die Zuordnung der Bilder (bild1.jpg bis bild10.jpg) zu den russischen Wörtern
+        const items = [
+            { id: 1, word: "Озеро Байкал", img: "bild1.jpg" },
+            { id: 2, word: "Блины", img: "bild2.jpg" },
+            { id: 3, word: "Борщ", img: "bild3.jpg" },
+            { id: 4, word: "Кремль", img: "bild4.jpg" },
+            { id: 5, word: "Петергоф", img: "bild5.jpg" },
+            { id: 6, word: "Пушкин", img: "bild6.jpg" },
+            { id: 7, word: "Красная площадь", img: "bild7.jpg" },
+            { id: 8, word: "Салат оливье", img: "bild8.jpg" },
+            { id: 9, word: "Масленица", img: "bild9.jpg" },
+            { id: 10, word: "Метро", img: "bild10.jpg" }
+        ];
+
+        let selectedId = null;
+        let matchesFound = 0;
+
+        const imageGrid = document.getElementById('imageGrid');
+        const wordPool = document.getElementById('wordPool');
+
+        function init() {
+            // Bilder rendern (in Reihenfolge der ID)
+            items.forEach(item => {
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.dataset.id = item.id;
+                card.innerHTML = `<img src="${item.img}" alt="Russland Bild">`;
+                card.onclick = () => selectCard(card);
+                imageGrid.appendChild(card);
+            });
+
+            // Wörter mischen für die Buttons
+            const shuffledWords = [...items].sort(() => Math.random() - 0.5);
+            shuffledWords.forEach(item => {
+                const btn = document.createElement('button');
+                btn.className = 'word-btn';
+                btn.dataset.id = item.id;
+                btn.innerText = item.word;
+                btn.onclick = () => selectWord(btn);
+                wordPool.appendChild(btn);
+            });
+        }
+
+        function selectCard(card) {
+            if (card.classList.contains('matched')) return;
+            document.querySelectorAll('.card').forEach(c => c.classList.remove('selected'));
+            card.classList.add('selected');
+            selectedId = card.dataset.id;
+        }
+
+        function selectWord(btn) {
+            if (!selectedId) {
+                alert("Bitte wähle zuerst oben ein Bild aus!");
+                return;
+            }
+
+            if (btn.dataset.id === selectedId) {
+                // Richtig!
+                const card = document.querySelector(`.card.selected`);
+                card.classList.replace('selected', 'matched');
+                btn.classList.add('hidden');
+                selectedId = null;
+                matchesFound++;
+                
+                if (matchesFound === items.length) {
+                    document.getElementById('winMessage').style.display = 'block';
+                }
+            } else {
+                // Falsch
+                btn.style.backgroundColor = 'var(--russian-red)';
+                btn.style.color = 'white';
+                setTimeout(() => {
+                    btn.style.backgroundColor = '';
+                    btn.style.color = '';
+                }, 500);
+            }
+        }
+
+        init();
+    </script>
+</body>
+</html>
