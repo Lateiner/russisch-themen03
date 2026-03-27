@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dialog-Puzzle: Live Feedback</title>
+    <style>
+        :root {
+            --primary-blue: #0055a4;
+            --russian-red: #d52b1e;
+            --success-green: #28a745;
+            --bg-color: #f0f2f5;
+            --card-border: #ccd1d9;
+        }
+
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background-color: var(--bg-color);
+            margin: 0;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        h1 { color: var(--primary-blue); margin-bottom: 5px; font-size: 1.5rem; text-align: center; }
+        .hint { color: #555; font-size: 0.9rem; margin-bottom: 20px; text-align: center; max-width: 450px; }
+
+        /* Puzzle Liste */
+        #puzzle-container {
+            width: 100%;
+            max-width: 500px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .puzzle-item {
+            background: white;
+            padding: 15px;
+            border: 2px solid var(--card-border);
+            border-radius: 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            transition: all 0.3s ease;
+            user-select: none;
+            box-shadow: 0 3px 6px rgba(0,0,0,0.05);
+            font-size: 1rem;
+            color: #333;
+            position: relative;
+        }
+
+        /* Selektiert-Zustand */
+        .puzzle-item.selected {
+            border-color: var(--primary-blue);
+            background-color: #eef7ff;
+            transform: scale(1.02);
+            z-index: 10;
+        }
+
+        /* Richtig-Zustand (Live Feedback) */
+        .puzzle-item.correct {
+            border-color: var(--success-green);
+            background-color: #f1fff5;
+            cursor: default;
+        }
+        .puzzle-item.correct::after {
+            content: "✓";
+            position: absolute;
+            right: 15px;
+            color: var(--success-green);
+            font-weight: bold;
+        }
+
+        /* Nummerierung */
+        .puzzle-item::before {
+            content: attr(data-pos);
+            margin-right: 15px;
+            background: #eee;
+            color: #777;
+            width: 26px;
+            height: 26px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            font-size: 0.8rem;
+            flex-shrink: 0;
+        }
+
+        /* Buttons unten */
+        .controls {
+            margin-top: 30px;
+            display: flex;
+            gap: 12px;
+            width: 100%;
+            max-width: 500px;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 14px;
+            border: none;
+            border-radius: 10px;
+            font-weight: bold;
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: opacity 0.2s;
+            color: white;
+        }
+
+        .btn-restart { background-color: #6c757d; }
+        .btn-solution { background-color: var(--primary-blue); }
+        .btn:hover { opacity: 0.85; }
+
+        .win-msg {
+            display: none;
+            color: var(--success-green);
+            font-weight: bold;
+            margin-top: 20px;
+            font-size: 1.2rem;
+            text-align: center;
+            animation: pop 0.4s ease;
+        }
+
+        @keyframes pop { 0% { transform: scale(0.8); } 100% { transform: scale(1); } }
+
+        @media (max-width: 500px) {
+            .puzzle-item { font-size: 0.9rem; padding: 12px; }
+            .btn { font-size: 0.85rem; padding: 12px 8px; }
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Диалог-пазл</h1>
+    <p class="hint">Tippe zwei Sätze an, um sie zu tauschen. <br>Richtige Positionen werden <b>sofort grün</b> markiert.</p>
+
+    <div id="puzzle-container"></div>
+
+    <div id="win-msg" class="win-msg">Отлично! Всё правильно! 🌟</div>
+
+    <div class="controls">
+        <button class="btn btn-restart" onclick="resetPuzzle()">Neustart</button>
+        <button class="btn btn-solution" onclick="showSolution()">Lösung anzeigen</button>
+    </div>
+
+    <script>
+        const correctOrder = [
+            "Привет! Меня зовут Ира.",
+            "Из какой ты страны?",
+            "Я из России.",
+            "Какая твоя страна?",
+            "Моя страна большая и красивая.",
+            "Как называется столица твоей страны?",
+            "Столица России – Москва.",
+            "На каком языке говорят жители?",
+            "Жители России говорят на русском языке."
+        ];
+
+        let currentOrder = [...correctOrder];
+        let firstSelectedIndex = null;
+
+        function shuffle(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            // Sicherstellen, dass nicht zufällig alles richtig ist
+            if (JSON.stringify(array) === JSON.stringify(correctOrder)) shuffle(array);
+            return array;
+        }
+
+        function render() {
+            const container = document.getElementById('puzzle-container');
+            container.innerHTML = '';
+            let correctMatches = 0;
+
+            currentOrder.forEach((text, index) => {
+                const div = document.createElement('div');
+                div.className = 'puzzle-item';
+                div.innerText = text;
+                div.setAttribute('data-pos', index + 1);
+                
+                // Feedback: Wenn Position stimmt
+                if (text === correctOrder[index]) {
+                    div.classList.add('correct');
+                    correctMatches++;
+                }
+
+                // Nur anklickbar, wenn noch nicht korrekt an dieser Stelle
+                // (Optional: Man kann es auch immer anklickbar lassen. Hier lassen wir es für Flexibilität anklickbar)
+                div.onclick = () => handleSelect(index);
+                
+                if (firstSelectedIndex === index) {
+                    div.classList.add('selected');
+                }
+
+                container.appendChild(div);
+            });
+
+            // Sieg prüfen
+            if (correctMatches === correctOrder.length) {
+                document.getElementById('win-msg').style.display = 'block';
+            } else {
+                document.getElementById('win-msg').style.display = 'none';
+            }
+        }
+
+        function handleSelect(index) {
+            if (firstSelectedIndex === null) {
+                firstSelectedIndex = index;
+            } else {
+                // Tauschvorgang
+                const temp = currentOrder[firstSelectedIndex];
+                currentOrder[firstSelectedIndex] = currentOrder[index];
+                currentOrder[index] = temp;
+                firstSelectedIndex = null;
+            }
+            render();
+        }
+
+        function resetPuzzle() {
+            firstSelectedIndex = null;
+            shuffle(currentOrder);
+            render();
+        }
+
+        function showSolution() {
+            firstSelectedIndex = null;
+            currentOrder = [...correctOrder];
+            render();
+        }
+
+        // Start
+        shuffle(currentOrder);
+        render();
+    </script>
+</body>
+</html>
