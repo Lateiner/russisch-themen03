@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Grammatik-Detektiv: 8 Fehler</title>
+    <style>
+        :root {
+            --primary-blue: #0055a4;
+            --russian-red: #d52b1e;
+            --success-green: #28a745;
+            --bg-color: #f0f2f5;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, sans-serif;
+            background-color: var(--bg-color);
+            margin: 0;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        h1 { color: var(--primary-blue); text-align: center; font-size: 1.5rem; margin-bottom: 5px; }
+        .instruction { color: #555; text-align: center; margin-bottom: 20px; max-width: 600px; font-size: 0.9rem; }
+
+        .counter-panel {
+            background: white;
+            padding: 10px 25px;
+            border-radius: 30px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            margin-bottom: 25px;
+            font-weight: bold;
+            font-size: 1.2rem;
+            color: var(--primary-blue);
+        }
+
+        /* Text-Karten Design */
+        .text-area {
+            background: white;
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            max-width: 800px;
+            width: 100%;
+            line-height: 2.8; /* Viel Platz für Smartphone-User */
+            font-size: 1.3rem;
+            text-align: center;
+            color: #333;
+        }
+
+        .word {
+            display: inline-block;
+            padding: 0 5px;
+            margin: 0 2px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border-bottom: 2px solid transparent;
+        }
+
+        .word:hover:not(.found) { background-color: #f0f4f8; }
+
+        /* Zustände */
+        .found {
+            background-color: #e8f5e9 !important;
+            color: var(--success-green) !important;
+            border-bottom: 2px solid var(--success-green);
+            cursor: default;
+            animation: pop 0.3s ease;
+        }
+
+        .wrong-tap {
+            background-color: #ffebee !important;
+            color: var(--russian-red) !important;
+            animation: shake 0.4s;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-6px); }
+            75% { transform: translateX(6px); }
+        }
+
+        @keyframes pop {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+
+        /* Buttons am Ende */
+        .controls {
+            margin-top: 30px;
+            display: flex;
+            gap: 15px;
+        }
+
+        .btn {
+            padding: 12px 25px;
+            border: none;
+            border-radius: 10px;
+            font-weight: bold;
+            cursor: pointer;
+            color: white;
+            transition: opacity 0.2s;
+        }
+        .btn-restart { background-color: #6c757d; }
+        .btn-solution { background-color: var(--primary-blue); }
+
+        #win-msg {
+            display: none;
+            margin-top: 25px;
+            text-align: center;
+            color: var(--success-green);
+            font-weight: bold;
+            font-size: 1.4rem;
+        }
+
+        /* Mobile Anpassung */
+        @media (max-width: 600px) {
+            .text-area { padding: 20px; font-size: 1.15rem; line-height: 2.4; text-align: justify; }
+            h1 { font-size: 1.3rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Найди 8 ошибок!</h1>
+    <p class="instruction">In diesem Text sind 8 Fehler versteckt (Endungen & Geschlecht). <br>Klicke auf die falschen Wörter, um sie zu korrigieren.</p>
+
+    <div class="counter-panel">
+        Ошибки: <span id="count">0</span> / 8
+    </div>
+
+    <div class="text-area" id="text-box">
+        <!-- Wörter werden per JS geladen -->
+    </div>
+
+    <div id="win-msg">Отлично! Все ошибки исправлены! 🌟</div>
+
+    <div class="controls">
+        <button class="btn btn-restart" onclick="location.reload()">Neustart</button>
+        <button class="btn btn-solution" onclick="showAll()">Lösung zeigen</button>
+    </div>
+
+    <script>
+        const words = [
+            { t: "Привет!", e: false },
+            { t: "Меня", e: false },
+            { t: "зовут", e: false },
+            { t: "Ира.", e: false },
+            { t: "Я", e: false },
+            { t: "из", e: false },
+            { t: "Россия,", e: true, c: "России," }, // 1. Genitiv
+            { t: "моя", e: false },
+            { t: "страна", e: false },
+            { t: "очень", e: false },
+            { t: "большой", e: true, c: "большая" }, // 2. Geschlecht
+            { t: "и", e: false },
+            { t: "красивая.", e: false },
+            { t: "Столица", e: false },
+            { t: "Россия", e: true, c: "России" }, // 3. Genitiv
+            { t: "—", e: false },
+            { t: "Москва.", e: false },
+            { t: "Жители", e: false },
+            { t: "говорят", e: false },
+            { t: "на", e: false },
+            { t: "русском", e: false },
+            { t: "язык.", e: true, c: "языке." }, // 4. Präpositiv
+            { t: "На", e: false },
+            { t: "Масленица", e: true, c: "Масленицу" }, // 5. Akkusativ (Zeit)
+            { t: "люди", e: false },
+            { t: "пекут", e: false },
+            { t: "блины.", e: false },
+            { t: "В", e: false },
+            { t: "стране", e: false },
+            { t: "много", e: false },
+            { t: "достопримечательность.", e: true, c: "достопримечательностей." }, // 6. Genitiv Plural
+            { t: "Здесь", e: false },
+            { t: "живут", e: false },
+            { t: "разный", e: false },
+            { t: "русский", e: true, c: "русские" }, // 7. Plural
+            { t: "народы.", e: false },
+            { t: "Я", e: false },
+            { t: "очень", e: false },
+            { t: "люблю", e: false },
+            { t: "свою", e: false },
+            { t: "страна!", e: true, c: "страну!" } // 8. Akkusativ
+        ];
+
+        let found = 0;
+        const box = document.getElementById('text-box');
+
+        function init() {
+            words.forEach((w, i) => {
+                const span = document.createElement('span');
+                span.className = 'word';
+                span.innerText = w.t;
+                span.onclick = () => clickWord(span, w);
+                box.appendChild(span);
+                box.appendChild(document.createTextNode(' '));
+            });
+        }
+
+        function clickWord(el, data) {
+            if (el.classList.contains('found')) return;
+
+            if (data.e) {
+                el.classList.add('found');
+                el.innerText = data.c;
+                found++;
+                document.getElementById('count').innerText = found;
+                if (found === 8) document.getElementById('win-msg').style.display = 'block';
+            } else {
+                el.classList.add('wrong-tap');
+                setTimeout(() => el.classList.remove('wrong-tap'), 500);
+            }
+        }
+
+        function showAll() {
+            const spans = document.querySelectorAll('.word');
+            words.forEach((w, i) => {
+                if (w.e) {
+                    spans[i].classList.add('found');
+                    spans[i].innerText = w.c;
+                }
+            });
+            found = 8;
+            document.getElementById('count').innerText = found;
+            document.getElementById('win-msg').style.display = 'block';
+        }
+
+        init();
+    </script>
+</body>
+</html>
