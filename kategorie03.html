@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sortierspiel: Russland</title>
+    <style>
+        :root {
+            --primary-blue: #0055a4;
+            --russian-red: #d52b1e;
+            --success-green: #28a745;
+            --bg-color: #f8f9fa;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        h1 { color: var(--primary-blue); text-align: center; font-size: 1.5rem; }
+        
+        .progress-container {
+            width: 100%;
+            max-width: 400px;
+            background: #ddd;
+            height: 10px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+        #progressBar {
+            width: 0%;
+            height: 100%;
+            background: var(--success-green);
+            transition: width 0.3s;
+        }
+
+        /* Das aktuelle Wort im Fokus */
+        .card-display {
+            background: white;
+            width: 100%;
+            max-width: 400px;
+            height: 150px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 15px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+            border: 2px solid #eee;
+        }
+
+        #currentWord {
+            font-size: 2.2rem;
+            font-weight: bold;
+            color: #333;
+            text-align: center;
+        }
+
+        /* Die "Eimer" (Buttons) */
+        .bucket-container {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 15px;
+            width: 100%;
+            max-width: 400px;
+        }
+
+        .bucket-btn {
+            background: white;
+            border: 3px solid var(--primary-blue);
+            padding: 20px;
+            border-radius: 12px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: var(--primary-blue);
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .bucket-btn span {
+            font-size: 0.9rem;
+            color: #666;
+            margin-top: 5px;
+            font-weight: normal;
+        }
+
+        .bucket-btn:active {
+            transform: scale(0.95);
+        }
+
+        .bucket-btn.correct {
+            background: var(--success-green);
+            border-color: var(--success-green);
+            color: white;
+        }
+        .bucket-btn.correct span { color: white; }
+
+        .bucket-btn.wrong {
+            background: var(--russian-red);
+            border-color: var(--russian-red);
+            color: white;
+            animation: shake 0.4s;
+        }
+        .bucket-btn.wrong span { color: white; }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-10px); }
+            75% { transform: translateX(10px); }
+        }
+
+        .hidden { display: none; }
+
+        .win-screen {
+            text-align: center;
+            padding: 40px;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        /* Desktop Anpassung */
+        @media (min-width: 768px) {
+            .bucket-container {
+                grid-template-columns: repeat(3, 1fr);
+                max-width: 800px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Kategorisierung: Куда это отправить?</h1>
+    <p>Ordne das Wort der richtigen Kategorie zu.</p>
+
+    <div class="progress-container">
+        <div id="progressBar"></div>
+    </div>
+
+    <div id="gameUI">
+        <div class="card-display">
+            <div id="currentWord">Wort wird geladen...</div>
+        </div>
+
+        <div class="bucket-container">
+            <button class="bucket-btn" onclick="checkAnswer('food')">
+                Еда
+                <span>(Essen)</span>
+            </button>
+            <button class="bucket-btn" onclick="checkAnswer('city')">
+                Города
+                <span>(Städte)</span>
+            </button>
+            <button class="bucket-btn" onclick="checkAnswer('person')">
+                Люди
+                <span>(Personen)</span>
+            </button>
+        </div>
+    </div>
+
+    <div id="winScreen" class="win-screen hidden">
+        <h2 style="color: var(--success-green); font-size: 2rem;">Отлично! (Ausgezeichnet!)</h2>
+        <p>Du hast alle Begriffe richtig sortiert.</p>
+        <button onclick="location.reload()" style="padding: 10px 20px; border-radius: 10px; border: none; background: var(--primary-blue); color: white; cursor: pointer; font-weight: bold;">Nochmal spielen</button>
+    </div>
+
+    <script>
+        const words = [
+            { w: "Борщ", cat: "food" },
+            { w: "Москва", cat: "city" },
+            { w: "Пушкин", cat: "person" },
+            { w: "Блины", cat: "food" },
+            { w: "Санкт-Петербург", cat: "city" },
+            { w: "Достоевский", cat: "person" },
+            { w: "Салат оливье", cat: "food" },
+            { w: "Волгоград", cat: "city" },
+            { w: "Толстой", cat: "person" },
+            { w: "Винегрет", cat: "food" },
+            { w: "Кунгур", cat: "city" },
+            { w: "Чехов", cat: "person" },
+            { w: "Селедка под шубой", cat: "food" },
+            { w: "Ейск", cat: "city" },
+            { w: "Шарапова", cat: "person" }
+        ];
+
+        // Wörter mischen
+        let gameStack = [...words].sort(() => Math.random() - 0.5);
+        let currentIndex = 0;
+        let total = words.length;
+
+        function updateUI() {
+            if (currentIndex < total) {
+                document.getElementById('currentWord').innerText = gameStack[currentIndex].w;
+                document.getElementById('progressBar').style.width = (currentIndex / total * 100) + "%";
+            } else {
+                document.getElementById('gameUI').classList.add('hidden');
+                document.getElementById('progressBar').style.width = "100%";
+                document.getElementById('winScreen').classList.remove('hidden');
+            }
+        }
+
+        function checkAnswer(category) {
+            const currentItem = gameStack[currentIndex];
+            const buttons = document.querySelectorAll('.bucket-btn');
+            
+            // Finde den geklickten Button
+            let clickedBtn;
+            if (category === 'food') clickedBtn = buttons[0];
+            if (category === 'city') clickedBtn = buttons[1];
+            if (category === 'person') clickedBtn = buttons[2];
+
+            if (currentItem.cat === category) {
+                // Richtig
+                clickedBtn.classList.add('correct');
+                setTimeout(() => {
+                    clickedBtn.classList.remove('correct');
+                    currentIndex++;
+                    updateUI();
+                }, 400);
+            } else {
+                // Falsch
+                clickedBtn.classList.add('wrong');
+                setTimeout(() => {
+                    clickedBtn.classList.remove('wrong');
+                }, 400);
+            }
+        }
+
+        updateUI();
+    </script>
+</body>
+</html>
