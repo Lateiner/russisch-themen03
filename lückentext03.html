@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Russisch-Lückentext: 10 Aufgaben</title>
+    <style>
+        :root {
+            --primary-blue: #0055a4;
+            --russian-red: #d52b1e;
+            --success-green: #28a745;
+            --bg-color: #f0f2f5;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, sans-serif;
+            background-color: var(--bg-color);
+            margin: 0;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            line-height: 1.7;
+        }
+
+        h1 { color: var(--primary-blue); text-align: center; font-size: 1.6rem; margin-bottom: 10px; }
+        .instruction { color: #555; text-align: center; margin-bottom: 25px; font-size: 0.95rem; max-width: 600px; }
+
+        /* Der Textblock */
+        .quiz-card {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+            max-width: 750px;
+            width: 100%;
+            font-size: 1.1rem;
+            color: #333;
+        }
+
+        /* Dropdown Menü Styling */
+        select {
+            appearance: none;
+            background-color: #fff;
+            border: 2px solid var(--primary-blue);
+            border-radius: 6px;
+            padding: 2px 6px;
+            font-size: 1rem;
+            font-family: inherit;
+            color: var(--primary-blue);
+            cursor: pointer;
+            margin: 2px 4px;
+            transition: all 0.3s;
+            outline: none;
+        }
+
+        /* Feedback-Klassen */
+        select.correct { 
+            border-color: var(--success-green); 
+            background-color: #eefbee; 
+            color: var(--success-green);
+        }
+        select.wrong { 
+            border-color: var(--russian-red); 
+            background-color: #fdf2f2; 
+            color: var(--russian-red);
+        }
+
+        /* Controls */
+        .button-bar {
+            margin-top: 30px;
+            display: flex;
+            gap: 12px;
+            width: 100%;
+            max-width: 750px;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 10px;
+            font-weight: bold;
+            cursor: pointer;
+            color: white;
+            font-size: 0.95rem;
+            transition: opacity 0.2s;
+        }
+
+        .btn-solution { background-color: var(--primary-blue); }
+        .btn-restart { background-color: #6c757d; }
+        .btn:hover { opacity: 0.85; }
+
+        #score-display {
+            margin-top: 15px;
+            font-weight: bold;
+            font-size: 1.1rem;
+            color: var(--primary-blue);
+        }
+
+        /* Mobile Layout */
+        @media (max-width: 600px) {
+            .quiz-card { padding: 15px; font-size: 1rem; text-align: justify; }
+            select { padding: 4px; margin-bottom: 8px; }
+            .button-bar { flex-direction: column; }
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Текст о России и Москве</h1>
+    <p class="instruction">Wähle das richtige Wort aus. <br>Das System gibt dir <b>sofort Feedback</b>.</p>
+
+    <div class="quiz-card" id="quizContainer">
+        Привет! Я из 
+        <!-- 1 -->
+        <select onchange="check(this)" data-answer="России">
+            <option value="">...</option>
+            <option value="Россия">Россия</option>
+            <option value="России">России</option>
+            <option value="Россию">Россию</option>
+        </select>. 
+        Моя страна очень 
+        <!-- 2 -->
+        <select onchange="check(this)" data-answer="большая">
+            <option value="">...</option>
+            <option value="большая">большая</option>
+            <option value="большой">большой</option>
+            <option value="большое">большое</option>
+        </select> 
+        и красивая. Столица страны – город 
+        <!-- 3 -->
+        <select onchange="check(this)" data-answer="Москва">
+            <option value="">...</option>
+            <option value="Москве">Москве</option>
+            <option value="Москва">Москва</option>
+            <option value="Москву">Москву</option>
+        </select>. 
+        Жители страны 
+        <!-- 4 -->
+        <select onchange="check(this)" data-answer="говорят">
+            <option value="">...</option>
+            <option value="говорят">говорят</option>
+            <option value="говорит">говорит</option>
+            <option value="говорят">говорят</option>
+        </select> 
+        на русском языке. В центре города расположена 
+        <!-- 5 -->
+        <select onchange="check(this)" data-answer="Красная площадь">
+            <option value="">...</option>
+            <option value="Красную площадь">Красную площадь</option>
+            <option value="Красная площадь">Красная площадь</option>
+            <option value="Красной площади">Красной площади</option>
+        </select>. 
+        Россия известна своими 
+        <!-- 6 -->
+        <select onchange="check(this)" data-answer="писателями">
+            <option value="">...</option>
+            <option value="писатели">писатели</option>
+            <option value="писателей">писателей</option>
+            <option value="писателями">писателями</option>
+        </select>, 
+        например, это Александр Пушкин и Лев Толстой. Традиционно на Новый год все семьи готовят вкусные 
+        <!-- 7 -->
+        <select onchange="check(this)" data-answer="салаты">
+            <option value="">...</option>
+            <option value="салаты">салаты</option>
+            <option value="салата">салата</option>
+            <option value="салатов">салатов</option>
+        </select>. 
+        Зимой в городе открывают большой 
+        <!-- 8 -->
+        <select onchange="check(this)" data-answer="каток">
+            <option value="">...</option>
+            <option value="каток">каток</option>
+            <option value="катка">катка</option>
+            <option value="катке">катке</option>
+        </select>, 
+        где люди катаются на коньках. Весной все празднуют Масленицу и пекут 
+        <!-- 9 -->
+        <select onchange="check(this)" data-answer="блины">
+            <option value="">...</option>
+            <option value="блины">блины</option>
+            <option value="блинам">блинам</option>
+            <option value="блинов">блинов</option>
+        </select>. 
+        Я очень люблю мою 
+        <!-- 10 -->
+        <select onchange="check(this)" data-answer="страну">
+            <option value="">...</option>
+            <option value="страна">страна</option>
+            <option value="страну">страну</option>
+            <option value="стране">стране</option>
+        </select>!
+    </div>
+
+    <div id="score-display">Richtig: 0 / 10</div>
+
+    <div class="button-bar">
+        <button class="btn btn-solution" onclick="showSolution()">Lösung anzeigen</button>
+        <button class="btn btn-restart" onclick="resetGame()">Neustart</button>
+    </div>
+
+    <script>
+        function check(el) {
+            const correctAnswer = el.getAttribute('data-answer');
+            if (el.value === "") {
+                el.className = "";
+            } else if (el.value === correctAnswer) {
+                el.className = "correct";
+            } else {
+                el.className = "wrong";
+            }
+            updateScore();
+        }
+
+        function updateScore() {
+            const corrects = document.querySelectorAll('select.correct').length;
+            document.getElementById('score-display').innerText = `Richtig: ${corrects} / 10`;
+            
+            if (corrects === 10) {
+                document.getElementById('score-display').innerText = "Отлично! 10 / 10 🌟";
+            }
+        }
+
+        function showSolution() {
+            const selects = document.querySelectorAll('select');
+            selects.forEach(s => {
+                s.value = s.getAttribute('data-answer');
+                s.className = "correct";
+            });
+            updateScore();
+        }
+
+        function resetGame() {
+            const selects = document.querySelectorAll('select');
+            selects.forEach(s => {
+                s.value = "";
+                s.className = "";
+            });
+            updateScore();
+        }
+    </script>
+</body>
+</html>
