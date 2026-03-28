@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wimmelbild: Русский стол</title>
+    <style>
+        :root {
+            --primary-blue: #0055a4;
+            --russian-red: #d52b1e;
+            --success-green: #28a745;
+            --bg-color: #f8f9fa;
+        }
+
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background-color: var(--bg-color);
+            margin: 0;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        h1 { color: var(--primary-blue); font-size: 1.5rem; margin: 10px 0; text-align:center;}
+
+        .task-box {
+            background: white;
+            padding: 15px 25px;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            text-align: center;
+            border: 3px solid var(--primary-blue);
+            width: 90%;
+            max-width: 500px;
+        }
+
+        .target-word { font-size: 1.8rem; font-weight: bold; color: var(--russian-red); cursor: pointer;}
+        .speaker-icon { opacity: 0.6; font-size: 1.2rem; margin-left: 10px;}
+
+        .controls { margin-bottom: 20px; display:flex; gap:10px;}
+        .btn { padding: 10px 20px; border:none; border-radius:8px; color:white; font-weight:bold; cursor:pointer;}
+        #restart-btn { background-color: #6c757d;}
+
+        .wimmel-container {
+            position: relative;
+            width: 100%;
+            max-width: 1000px;
+            line-height: 0;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .wimmel-img { width: 100%; height: auto; display: block; }
+
+        .hotspot {
+            position: absolute;
+            cursor: pointer;
+            z-index: 10;
+            /* Debug: Auf 0.2 setzen zum testen der Positionen */
+            background: transparent; 
+        }
+
+        /* Präzise Koordinaten für dein Bild */
+        #area-borscht   { top: 72%; left: 44%; width: 30%; height: 30%; }
+        #area-olivier   { top: 32%; left: 41%; width: 25%; height: 22%; }
+        #area-blinis    { top: 51%; left: 19%; width: 24%; height: 24%; }
+        #area-vinigret  { top: 37%; left: 73%; width: 22%; height: 18%; }
+        #area-samovar   { top: 13%; left: 8%; width: 17%; height: 25%; }
+        #area-baranki   { top: 5%; left: 13%; width: 11%; height: 15%; }
+        #area-bread     { top: 68%; left: 6%; width: 14%; height: 24%; }
+        #area-smetana   { top: 58%; left: 75%; width: 15%; height: 16%; }
+        #area-ikra      { top: 46%; left: 55%; width: 10%; height: 10%; }
+
+        .flash-correct { border: 4px solid var(--success-green); border-radius: 10px; box-sizing: border-box; }
+        .flash-wrong { animation: shake 0.4s ease; border: 4px solid var(--russian-red); border-radius: 10px; box-sizing: border-box; }
+
+        @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-10px); } 75% { transform: translateX(10px); } }
+
+        #win-msg {
+            display: none;
+            margin-top: 20px;
+            background: var(--success-green);
+            color: white;
+            padding: 20px;
+            border-radius: 15px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Найди на столе!</h1>
+    
+    <div class="controls">
+        <button id="restart-btn" class="btn" onclick="location.reload()">Neustart</button>
+    </div>
+
+    <div class="task-box">
+        <div class="task-label">Suche auf dem Tisch:</div>
+        <div class="target-word" onclick="speakCurrent()" id="target">Lade...</div>
+    </div>
+
+    <div class="wimmel-container">
+        <img src="russischer_tisch.jpg" alt="Russischer Tisch" class="wimmel-img">
+        <div class="hotspot" id="area-borscht" onclick="check('борщ', this)"></div>
+        <div class="hotspot" id="area-olivier" onclick="check('салат оливье', this)"></div>
+        <div class="hotspot" id="area-blinis" onclick="check('блины', this)"></div>
+        <div class="hotspot" id="area-vinigret" onclick="check('винегрет', this)"></div>
+        <div class="hotspot" id="area-samovar" onclick="check('самовар', this)"></div>
+        <div class="hotspot" id="area-baranki" onclick="check('баранки', this)"></div>
+        <div class="hotspot" id="area-bread" onclick="check('хлеб', this)"></div>
+        <div class="hotspot" id="area-smetana" onclick="check('сметана', this)"></div>
+        <div class="hotspot" id="area-ikra" onclick="check('икра', this)"></div>
+    </div>
+
+    <div id="win-msg">
+        <h2>Молодец! Приятного аппетита!</h2>
+        <button onclick="location.reload()" class="btn" style="background-color:var(--success-green); border:2px solid white;">Nochmal spielen</button>
+    </div>
+
+    <script>
+        const tasks = ["салат оливье", "борщ", "блины", "винегрет", "самовар", "баранки", "хлеб", "сметана", "икра"];
+        const shuffledTasks = [...tasks].sort(() => Math.random() - 0.5);
+        let currentTaskIndex = 0;
+        let maleVoice = null;
+
+        // Männliche Stimme suchen
+        function setupVoice() {
+            const voices = window.speechSynthesis.getVoices();
+            maleVoice = voices.find(v => v.lang.startsWith('ru') && 
+                (v.name.includes('Male') || v.name.includes('Maxim') || v.name.includes('Pavel'))) || 
+                voices.find(v => v.lang.startsWith('ru'));
+        }
+        window.speechSynthesis.onvoiceschanged = setupVoice;
+        setupVoice();
+
+        // Vorlesen
+        function speakWord(w) {
+            window.speechSynthesis.cancel();
+            const msg = new SpeechSynthesisUtterance(w);
+            msg.voice = maleVoice;
+            msg.lang = 'ru-RU';
+            msg.pitch = 0.8;
+            msg.rate = 0.9;
+            window.speechSynthesis.speak(msg);
+        }
+
+        function speakCurrent() {
+            speakWord(shuffledTasks[currentTaskIndex]);
+        }
+
+        function updateTask() {
+            if (currentTaskIndex < shuffledTasks.length) {
+                document.getElementById('target').innerHTML = shuffledTasks[currentTaskIndex] + '<span class="speaker-icon">🔊</span>';
+                speakCurrent(); // Spricht sofort beim Aufruf
+            } else {
+                document.querySelector('.wimmel-container').style.display = 'none';
+                document.querySelector('.task-box').style.display = 'none';
+                document.getElementById('win-msg').style.display = 'block';
+            }
+        }
+
+        function check(name, el) {
+            if (el.classList.contains('flash-correct')) return;
+
+            if (name === shuffledTasks[currentTaskIndex]) {
+                el.classList.add('flash-correct');
+                currentTaskIndex++;
+                setTimeout(updateTask, 600);
+            } else {
+                el.classList.add('flash-wrong');
+                setTimeout(() => el.classList.remove('flash-wrong'), 400);
+            }
+        }
+
+        updateTask();
+    </script>
+</body>
+</html>
