@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Кто хочет стать миллионером?</title>
+    <style>
+        :root {
+            --bg-dark: #020230;
+            --btn-blue: linear-gradient(to bottom, #1010a0, #000050);
+            --gold: #ffd700;
+            --correct-green: #28a745;
+            --wrong-red: #d52b1e;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, sans-serif;
+            background: radial-gradient(circle, #0a0a50 0%, #020230 100%);
+            color: white;
+            margin: 0;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        h1 { color: var(--gold); font-size: 1.4rem; text-align: center; margin: 10px 0; text-transform: uppercase; }
+
+        /* Gewinn-Leiter */
+        .money-tree {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 5px;
+            margin-bottom: 20px;
+            width: 100%;
+            max-width: 600px;
+        }
+        .step {
+            padding: 4px 10px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 5px;
+            font-size: 0.8rem;
+            color: #aaa;
+        }
+        .step.active { background: var(--gold); color: black; font-weight: bold; transform: scale(1.1); }
+        .step.reached { color: var(--gold); }
+
+        /* Quiz Bereich */
+        .quiz-container {
+            width: 100%;
+            max-width: 700px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .question-box {
+            background: rgba(0,0,0,0.5);
+            border: 2px solid #555;
+            padding: 30px 20px;
+            border-radius: 50px;
+            text-align: center;
+            font-size: 1.3rem;
+            min-height: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+        .question-box::before, .question-box::after {
+            content: ""; position: absolute; width: 30px; height: 2px; background: #555; top: 50%;
+        }
+        .question-box::before { left: -32px; } .question-box::after { right: -32px; }
+
+        .options-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .option-btn {
+            background: var(--btn-blue);
+            border: 2px solid #555;
+            padding: 15px;
+            border-radius: 30px;
+            color: white;
+            font-size: 1.1rem;
+            cursor: pointer;
+            text-align: left;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+        }
+        .option-btn span { color: var(--gold); margin-right: 15px; font-weight: bold; }
+        .option-btn:hover { border-color: var(--gold); }
+        .option-btn.correct { background: var(--correct-green); border-color: white; }
+        .option-btn.wrong { background: var(--wrong-red); border-color: white; }
+
+        /* Joker */
+        .jokers { display: flex; gap: 15px; margin-top: 20px; }
+        .joker-btn {
+            width: 50px; height: 50px; border-radius: 50%; border: 2px solid var(--gold);
+            background: transparent; color: var(--gold); font-weight: bold; cursor: pointer;
+        }
+        .joker-btn:disabled { opacity: 0.3; cursor: default; }
+
+        #win-screen {
+            display: none; text-align: center; background: rgba(0,0,0,0.9);
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            flex-direction: column; align-items: center; justify-content: center; z-index: 100;
+        }
+
+        @media (max-width: 600px) {
+            .options-grid { grid-template-columns: 1fr; }
+            .question-box { font-size: 1.1rem; padding: 20px; }
+            .step { font-size: 0.6rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Кто хочет стать миллионером?</h1>
+
+    <div class="money-tree" id="moneyTree">
+        <!-- Schritte werden per JS geladen -->
+    </div>
+
+    <div class="quiz-container">
+        <div class="question-box" id="question">Lade Frage...</div>
+        <div class="options-grid" id="options">
+            <!-- Buttons werden per JS geladen -->
+        </div>
+    </div>
+
+    <div class="jokers">
+        <button class="joker-btn" onclick="use5050()" id="joker50">50:50</button>
+    </div>
+
+    <div id="win-screen">
+        <h2 id="win-title" style="color: var(--gold); font-size: 2.5rem;">ПОЗДРАВЛЯЕМ!</h2>
+        <p id="win-sum" style="font-size: 1.5rem;"></p>
+        <button onclick="location.reload()" style="padding: 10px 20px; cursor:pointer; margin-top: 20px;">Nochmal spielen</button>
+    </div>
+
+    <script>
+        const questions = [
+            { q: "Как называется столица России?", a: ["Москва", "Санкт-Петербург", "Волгоград", "Ейск"], c: 0 },
+            { q: "Что обычно пекут на праздник Масленица?", a: ["Пиццу", "Блины", "Борщ", "Торт"], c: 1 },
+            { q: "Как называется самое глубокое озеро в России?", a: ["Ладожское", "Каспийское", "Байкал", "Онежское"], c: 2 },
+            { q: "Кто написал 'Евгений Онегин'?", a: ["Толстой", "Достоевский", "Чехов", "Пушкин"], c: 3 },
+            { q: "В какой части России находится Камчатка?", a: ["На юге", "На западе", "На востоке", "В центре"], c: 2 },
+            { q: "Что такое 'селедка под шубой'?", a: ["Пальто", "Салат", "Суп", "Рыба на гриле"], c: 1 },
+            { q: "В какой области находится Кунгурская пещера?", a: ["Московская", "Пермская", "Волгоградская", "Ленинградская"], c: 1 },
+            { q: "Как называется родной город Иры?", a: ["Москва", "Сочи", "Ейск", "Краснодар"], c: 2 }
+        ];
+
+        const moneySteps = ["500 ₽", "1.000 ₽", "5.000 ₽", "10.000 ₽", "50.000 ₽", "100.000 ₽", "500.000 ₽", "1.000.000 ₽"];
+        let currentLevel = 0;
+        let maleVoice = null;
+
+        // Sprachausgabe
+        function loadVoices() {
+            maleVoice = window.speechSynthesis.getVoices().find(v => v.lang.startsWith('ru') && (v.name.includes('Maxim') || v.name.includes('Pavel'))) || 
+                        window.speechSynthesis.getVoices().find(v => v.lang.startsWith('ru'));
+        }
+        window.speechSynthesis.onvoiceschanged = loadVoices;
+
+        function speak(text) {
+            window.speechSynthesis.cancel();
+            const msg = new SpeechSynthesisUtterance(text);
+            msg.voice = maleVoice;
+            msg.lang = 'ru-RU';
+            msg.pitch = 0.8;
+            window.speechSynthesis.speak(msg);
+        }
+
+        function initUI() {
+            const tree = document.getElementById('moneyTree');
+            tree.innerHTML = '';
+            moneySteps.forEach((m, i) => {
+                const div = document.createElement('div');
+                div.className = `step ${i === currentLevel ? 'active' : ''} ${i < currentLevel ? 'reached' : ''}`;
+                div.innerText = m;
+                tree.prepend(div); // Höchste Summe oben
+            });
+
+            const q = questions[currentLevel];
+            document.getElementById('question').innerText = q.q;
+            speak(q.q);
+
+            const optionsBox = document.getElementById('options');
+            optionsBox.innerHTML = '';
+            const labels = ["A", "B", "C", "D"];
+            q.a.forEach((opt, i) => {
+                const btn = document.createElement('button');
+                btn.className = 'option-btn';
+                btn.innerHTML = `<span>${labels[i]}:</span> ${opt}`;
+                btn.onclick = () => checkAnswer(i, btn);
+                optionsBox.appendChild(btn);
+            });
+        }
+
+        function checkAnswer(idx, btn) {
+            const correct = questions[currentLevel].c;
+            const btns = document.querySelectorAll('.option-btn');
+            btns.forEach(b => b.disabled = true);
+
+            if (idx === correct) {
+                btn.classList.add('correct');
+                setTimeout(() => {
+                    currentLevel++;
+                    if (currentLevel < questions.length) {
+                        initUI();
+                    } else {
+                        showWin();
+                    }
+                }, 1500);
+            } else {
+                btn.classList.add('wrong');
+                btns[correct].classList.add('correct');
+                setTimeout(() => {
+                    alert("К сожалению, это неправильно. Попробуйте еще раз!");
+                    location.reload();
+                }, 2000);
+            }
+        }
+
+        function use5050() {
+            const correct = questions[currentLevel].c;
+            const btns = document.querySelectorAll('.option-btn');
+            let removed = 0;
+            const indices = [0, 1, 2, 3].sort(() => Math.random() - 0.5);
+            
+            indices.forEach(i => {
+                if (i !== correct && removed < 2) {
+                    btns[i].style.visibility = 'hidden';
+                    removed++;
+                }
+            });
+            document.getElementById('joker50').disabled = true;
+        }
+
+        function showWin() {
+            const screen = document.getElementById('win-screen');
+            screen.style.display = 'flex';
+            document.getElementById('win-sum').innerText = "Вы выиграли " + moneySteps[questions.length - 1] + "!";
+            speak("Поздравляем! Вы миллионер!");
+        }
+
+        initUI();
+    </script>
+</body>
+</html>
