@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wortgitter: Lösung korrigiert</title>
+    <style>
+        :root {
+            --primary-blue: #0055a4;
+            --russian-red: #d52b1e;
+            --success-green: #28a745;
+            --bg: #f8f9fa;
+        }
+
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background-color: var(--bg);
+            margin: 0;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            user-select: none;
+        }
+
+        h1 { color: var(--primary-blue); margin: 10px 0; font-size: 1.5rem; text-align: center; }
+        .instruction { color: #555; font-size: 0.9rem; margin-bottom: 15px; text-align: center; }
+
+        /* Das Gitter */
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(10, 1fr);
+            gap: 4px;
+            background: white;
+            padding: 10px;
+            border-radius: 12px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 400px;
+        }
+
+        .cell {
+            aspect-ratio: 1 / 1;
+            background: #e9ecef;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 1.1rem;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .cell.selected { background-color: var(--primary-blue); color: white; }
+        .cell.found { background-color: var(--success-green); color: white; border-radius: 4px; }
+
+        /* Wortliste */
+        .word-list {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 8px;
+            margin: 20px 0;
+            max-width: 400px;
+        }
+
+        .word-tag {
+            padding: 6px 12px;
+            background: white;
+            border: 2px solid #ddd;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            color: #666;
+            transition: all 0.3s;
+        }
+
+        .word-tag.found {
+            background-color: var(--success-green);
+            color: white;
+            border-color: var(--success-green);
+            text-decoration: line-through;
+        }
+
+        .controls { display: flex; gap: 10px; margin-bottom: 20px; }
+        .btn {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 1rem;
+        }
+        .btn-restart { background-color: #6c757d; }
+        .btn-solution { background-color: var(--primary-blue); }
+
+        @media (max-width: 450px) {
+            .cell { font-size: 0.95rem; }
+            .grid { gap: 2px; padding: 5px; }
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Найди слова!</h1>
+    <p class="instruction">Klicke auf den <b>ersten</b> und dann auf den <b>letzten</b> Buchstaben.</p>
+
+    <div class="grid" id="grid"></div>
+
+    <div class="word-list" id="wordList"></div>
+
+    <div class="controls">
+        <button class="btn btn-restart" onclick="location.reload()">Neustart</button>
+        <button class="btn btn-solution" onclick="solve()">Lösung anzeigen</button>
+    </div>
+
+    <script>
+        const words = ["МОСКВА", "КРЕМЛЬ", "МЕТРО", "ЕЙСК", "БОРЩ", "БЛИНЫ", "ИКРА", "ПУШКИН"];
+        const size = 10;
+        let gridArray = Array(size).fill().map(() => Array(size).fill(''));
+        let placedWordsMetadata = []; // Speichert Pfade der Wörter für die Lösung
+        let firstCell = null;
+        let maleVoice = null;
+
+        // Sprachausgabe initialisieren
+        function loadVoices() {
+            const voices = window.speechSynthesis.getVoices();
+            maleVoice = voices.find(v => v.lang.startsWith('ru') && (v.name.includes('Male') || v.name.includes('Maxim') || v.name.includes('Pavel'))) || 
+                        voices.find(v => v.lang.startsWith('ru'));
+        }
+        window.speechSynthesis.onvoiceschanged = loadVoices;
+
+        function speak(text) {
+            window.speechSynthesis.cancel();
+            const msg = new SpeechSynthesisUtterance(text);
+            msg.voice = maleVoice;
+            msg.lang = 'ru-RU';
+            msg.pitch = 0.8;
+            window.speechSynthesis.speak(msg);
+        }
+
+        function placeWords() {
+            const sortedWords = [...words].sort((a, b) => b.length - a.length);
+
+            sortedWords.forEach(word => {
+                let placed = false;
+                let attempts = 0;
+                while (!placed && attempts < 150) {
+                    const isVertical = Math.random() > 0.5;
+                    const r = Math.floor(Math.random() * (size - (isVertical ? word.length : 0)));
+                    const c = Math.floor(Math.random() * (size - (isVertical ? 0 : word.length)));
+
+                    let canPlace = true;
+                    let path = [];
+                    for (let i = 0; i < word.length; i++) {
+                        const row = r + (isVertical ? i : 0);
+                        const col = c + (isVertical ? 0 : i);
+                        const existingChar = gridArray[row][col];
+                        if (existingChar !== '' && existingChar !== word[i]) {
+                            canPlace = false;
+                            break;
+                        }
+                        path.push({ r: row, c: col });
+                    }
+
+                    if (canPlace) {
+                        path.forEach((pos, i) => {
+                            gridArray[pos.r][pos.c] = word[i];
+                        });
+                        placedWordsMetadata.push({ word: word, path: path });
+                        placed = true;
+                    }
+                    attempts++;
+                }
+            });
+
+            // Rest mit Zufallsbuchstaben füllen
+            const alpha = "АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЫЭЮЯ";
+            for(let r=0; r<size; r++) {
+                for(let c=0; c<size; c++) {
+                    if(gridArray[r][c] === '') gridArray[r][c] = alpha[Math.floor(Math.random() * alpha.length)];
+                }
+            }
+        }
+
+        function render() {
+            const gridEl = document.getElementById('grid');
+            const listEl = document.getElementById('wordList');
+            gridEl.innerHTML = '';
+            listEl.innerHTML = '';
+
+            gridArray.forEach((row, r) => {
+                row.forEach((char, c) => {
+                    const div = document.createElement('div');
+                    div.className = 'cell';
+                    div.innerText = char;
+                    div.dataset.r = r;
+                    div.dataset.c = c;
+                    div.onclick = () => onCellClick(div, r, c);
+                    gridEl.appendChild(div);
+                });
+            });
+
+            words.forEach(w => {
+                const tag = document.createElement('div');
+                tag.className = 'word-tag';
+                tag.id = 'tag-' + w;
+                tag.innerText = w;
+                listEl.appendChild(tag);
+            });
+        }
+
+        function onCellClick(el, r, c) {
+            if (el.classList.contains('found')) return;
+
+            if (!firstCell) {
+                firstCell = { r, c, el };
+                el.classList.add('selected');
+            } else {
+                validateSelection(firstCell.r, firstCell.c, r, c);
+                firstCell.el.classList.remove('selected');
+                firstCell = null;
+            }
+        }
+
+        function validateSelection(r1, c1, r2, c2) {
+            const dr = r2 === r1 ? 0 : (r2 > r1 ? 1 : -1);
+            const dc = c2 === c1 ? 0 : (c2 > c1 ? 1 : -1);
+            
+            if (dr !== 0 && dc !== 0) return; // Nur horizontale/vertikale Linien
+
+            let wordStr = "";
+            let path = [];
+            let r = r1, c = c1;
+
+            while (true) {
+                wordStr += gridArray[r][c];
+                path.push({r, c});
+                if (r === r2 && c === c2) break;
+                r += dr; c += dc;
+                if (r < 0 || r >= size || c < 0 || c >= size) break;
+            }
+
+            const reversed = wordStr.split('').reverse().join('');
+            const match = words.find(w => w === wordStr || w === reversed);
+
+            if (match) {
+                path.forEach(p => {
+                    document.querySelector(`[data-r="${p.r}"][data-c="${p.c}"]`).classList.add('found');
+                });
+                document.getElementById('tag-' + match).classList.add('found');
+                speak(match);
+            }
+        }
+
+        function solve() {
+            placedWordsMetadata.forEach(item => {
+                // Alle Buchstaben des Wortes im Gitter markieren
+                item.path.forEach(pos => {
+                    const cell = document.querySelector(`[data-r="${pos.r}"][data-c="${pos.c}"]`);
+                    if (cell) cell.classList.add('found');
+                });
+                // Wort in der Liste markieren
+                const tag = document.getElementById('tag-' + item.word);
+                if (tag) tag.classList.add('found');
+            });
+        }
+
+        // Spiel starten
+        placeWords();
+        render();
+    </script>
+</body>
+</html>
